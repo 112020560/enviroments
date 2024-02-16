@@ -1,0 +1,159 @@
+version: '3.7'
+
+services:
+  proxy:
+     image: nginx:alpine
+     container_name: proxy
+     ports:
+       - 80:80
+     volumes:
+       - ./nginx.conf:/etc/nginx/nginx.conf
+     restart: 'unless-stopped'
+
+  gateway_bridge:
+    image: felipe1712/integratorgateway:test0209202301
+    container_name: gateway_bridge
+    environment:
+     - ASPNETCORE_ENVIRONMENT=Test
+    ports:
+     - 4000:80
+    volumes:
+      - ~/apps/gateway/bridge/configuration:/configuration
+    restart: 'always'
+
+      
+  server:
+    image: felipe1712/sandboxconfigurator:sysdev3
+    container_name: server
+    environment:
+     - NODE_ENV=production
+     - SECRETE_KEY=RGVzYXJyb2xsb05lYWJhbmNvMjAyMg
+     - MONGO_URL=mongodb://mongo_db:27017/SandBox2
+     - PORT=3000
+    ports:
+      - "3000:3000"
+    restart: 'unless-stopped'
+      
+  bus_nodo1:
+    image: felipe1712/akrosdatabuswebapi:beta06
+    container_name: bus_nodo_uno
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Sysde
+      - ASPNETCORE_URLS=http://+:80
+      - Tenant=629e2045021a0e264b0c182b
+      - TenantId=backend
+      - ConfiguratorUrl=http://server:3000
+      - DOTNET_gcServer='1'
+    ports:
+      - 44328:80
+    depends_on:
+      - gateway_bridge
+      - server
+    restart: 'unless-stopped'
+
+  bus_nodo2:
+    image: felipe1712/akrosdatabuswebapi:beta06
+    container_name: bus_nodo_dos
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+80
+      - Tenant=629e2045021a0e264b0c182b
+      - TenantId=backend
+      - ConfiguratorUrl=http://server:3000
+      - DOTNET_gcServer=1
+    ports:
+      - 44330:80
+    depends_on:
+      - gateway_bridge
+      - server
+    restart: 'unless-stopped'
+
+  bus_nodo3:
+    image: felipe1712/akrosdatabuswebapi:beta06
+    container_name: bus_nodo_tres
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+80
+      - Tenant=629e2045021a0e264b0c182b
+      - TenantId=backend
+      - ConfiguratorUrl=http://server:3000
+      - DOTNET_gcServer=1
+    ports:
+      - 44332:80
+    depends_on:
+      - gateway_bridge
+      - server
+    restart: 'unless-stopped'
+
+  cache:
+    image: redis:6.2-alpine
+    container_name: redis_cache
+    restart: always
+    ports:
+      - '6379:6379'
+    command: redis-server --save 20 1 --loglevel warning --requirepass eYVX7EwVmmxKPCDmwMtyKVge8oLd2t81
+    volumes:
+      - ~/apps/cache:/data
+
+  mongodb:
+    image: mongo:6-jammy
+    container_name: mongo_db
+    restart: always
+    ports:
+      - 27017:27017
+    volumes:
+      - ~/apps/mongo:/data/db
+
+  rabbitmq:
+    image: rabbitmq:3.8-management-alpine
+    container_name: rabbitmq
+    restart: always
+    environment:
+      - RABBITMQ_DEFAULT_USER=sysde
+      - RABBITMQ_DEFAULT_PASS=Abc..123
+    ports:
+        - 5672:5672
+        - 15672:15672
+    volumes:
+        - ~/.docker-conf/rabbitmq/data/:/var/lib/rabbitmq/
+        - ~/.docker-conf/rabbitmq/log/:/var/log/rabbitmq
+  
+
+  seq:
+    image: datalust/seq:latest
+    container_name: seq
+    restart: always
+    ports:
+      - 8081:80
+      - 5341:5341
+    environment:
+      - ACCEPT_EULA=Y
+    volumes:
+        - ~/seq/data:/data
+
+  config-server:
+    image: akrostech/config-server:20240129003
+    container_name: config-server
+
+    ports:
+      - 8888:8888
+    restart: 'unless-stopped'
+    networks:
+      - configuration
+
+
+
+        
+volumes:
+  proxy:
+    driver: local
+  cache:
+    driver: local
+  mongodb:
+    driver: local
+  gateway:
+    driver: local
+  seq:
+    driver: local
+  rabbitmq:
+    driver: local

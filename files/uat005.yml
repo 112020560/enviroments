@@ -1,0 +1,137 @@
+version: '3.7'
+
+networks:
+  common:
+   external:
+       name: common_default
+
+#=================[ digital sign] ==================
+services:
+  signWorker:
+    image: grupogente/servicioimpresionsmartoracleuat002:07022024
+    container_name: signWorker
+    environment:
+      - DOTNET_ENVIRONMENT=smartSV
+      - TENANT=6398dff691653c0056e2e12e
+      - DOTNET_gcServer=1
+      - BrokerSettings__RabbitMqUri=amqp://sysde:Abc..123@rabbitmq:5672/evicertia
+      - GeneralSettings__WebLogicBridge=false
+      - BackendSetting__BaseUrl=http://proxy
+      - BlobSettings__BaseUrl=http://storage
+      - EvicertiaSetings__BaseUrl=https://app.ecertia.com
+      - EvicertiaSetings__Host=app.ecertia.com
+      - EvicertiaSetings__HostIframe=ecertia.com
+      - BridgeBrokerSettings__BaseUrl=https://revamp-uat02.akros.tech/api/v1/smart-bridge
+
+      - GraphQLApi__ApiUrl=http://graphql/graphql/
+    restart: always
+    networks:
+     - common
+     
+  weblogic:
+    image: felipe1712/akrosdigitalsignserviceapi:3008202301
+    container_name: weblogic
+    environment:
+      - ASPNETCORE_URLS=http://+:80
+      - DOTNET_gcServer=1
+      - BrokerSettings__RabbitMqUri=amqp://sysde:Abc..123@rabbitmq:5672/evicertia
+    restart: always
+    ports:
+      - 8092:80
+    networks:
+     - common
+     
+  storage:
+    image: felipe1712/akroswebapiscloudstorage:test2
+    container_name: storage
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Sysde
+      - ASPNETCORE_URLS=http://+:80
+      - DOTNET_gcServer=1
+    restart: always
+    ports:
+      - 8088:80
+    networks:
+     - common
+     
+  graphql:
+    image: grupogente/graphqlsysdereplica:18012024
+    container_name: graphql
+    environment:
+      - TZ=America/El_Salvador
+      - ASPNETCORE_ENVIRONMENT=Sysde
+      - ASPNETCORE_URLS=http://+:80
+      - DOTNET_gcServer=1
+      - ConnectionStrings__Sysde=user id=MULTIMONEY;password=Feb14MM2018;data source=//172.16.31.101/MULTI2;Min Pool Size=10;Connection Lifetime=100000;Connection Timeout=60;Incr Pool Size=5; Decr Pool Size=2
+    restart: always
+    ports:
+      - 8089:80
+    networks:
+     - common
+
+  #====================[ Novo ] ===========================
+  authorizer_transactions:
+    image: felipe1712/akrostransactionauthorizerapi:test24
+    container_name: authorizer_transacctions
+    environment:
+      - ASPNETCORE_ENVIRONMENT=SysdeTest
+      - ASPNETCORE_URLS=http://+:80
+      - TZ=America/El_Salvador
+      - DOTNET_gcServer=1
+      - ConnectionStrings__Sac=user id=MULTIMONEY;password=Feb14MM2018;data source=//172.16.31.101/MULTI2;Min Pool Size=10;Connection Lifetime=100000;Connection Timeout=60;Incr Pool Size=5; Decr Pool Size=2
+      - rabbit__RabbitMqUri=amqp://sysde:Abc..123@rabbitmq:5672/novo
+    restart: always
+    ports:
+      - 44335:80
+    networks:
+     - common
+     
+  novo_interface:
+    image: akrostech/novointerfaceapiweb:dev004
+    container_name: novo_interface
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:80
+      - DOTNET_gcServer=1
+    restart: always
+    ports:
+      - 44336:80
+    networks:
+     - common
+     
+  sistema_tarjetas:
+    image: felipe1712/tarjetafisiscasv:dev1
+    container_name: sistema_tarjetas
+
+    restart: always
+    ports:
+      - 8080:80
+    networks:
+     - common
+  #======================[ Transfers 365 ]=====================
+  transfer:
+    image: felipe1712/akrostransfersservicesrestapi:test2023092501
+    container_name: transfers
+    environment:
+      - ASPNETCORE_URLS=http://+:80
+      - DOTNET_gcServer=1
+      - ASPNETCORE_ENVIRONMENT=SacTest
+      - RabbitMqSettings__Uri=amqp://sysde:Abc..123@rabbitmq:5672/transfer
+    restart: always
+    ports:
+      - 44329:80
+    networks:
+     - common
+
+
+        
+volumes:
+  authorizer_transactions:
+    name: novo_transactions
+    driver: local
+  proxy:
+    driver: local
+  nginx-config:
+    driver: local
+
+
